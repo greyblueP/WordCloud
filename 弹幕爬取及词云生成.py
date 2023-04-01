@@ -9,6 +9,7 @@ from wordcloud import WordCloud, ImageColorGenerator
 import os
 import re
 
+
 headers = {
     'Host': 'api.bilibili.com',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36 Edg/111.0.1661.54',
@@ -47,7 +48,7 @@ def Get_series_list(mid):
                 break
     print(f'录播列表已获取,共{len(series_list)}个录播')
     #存到 录播列表.json 文件里
-    with open(f'{Path}\\录播列表{mid}.json','w',encoding='utf-8') as f:
+    with open(f'./{mid}弹幕/录播列表{mid}.json','w',encoding='utf-8') as f:
         json.dump(series_list,f,ensure_ascii=False,indent=4)
     print(f'录播列表已保存到 录播列表{mid}.json 文件里')
     return series_list
@@ -67,7 +68,7 @@ def Get_danmu(pubdata,bvid,title):
     pat_ = re.compile(r'">(.*?)</d><d ')
     pat = pat_.findall(text)
     #写入文件
-    with open(f'{Path}\\[{pubdata}]{title}.txt','w',encoding='utf-8') as f:
+    with open(f'./{mid}弹幕/{pubdata}{title}.txt','w',encoding='utf-8') as f:
         for i in pat:
             f.write(i+'\n')
         print(f'[{pubdata}]{title}弹幕已保存')
@@ -75,7 +76,7 @@ def Get_danmu(pubdata,bvid,title):
 
 #读取缓存
 def Read_series_list(mid):
-    with open(f'{Path}\\录播列表{mid}.json','r',encoding='utf-8') as f:
+    with open(f'./{mid}弹幕/录播列表{mid}.json','r',encoding='utf-8') as f:
         old_series_list=json.load(f)
     return old_series_list
 
@@ -92,9 +93,11 @@ def Get_All_danmu(mid):
     #获取录播列表
     series_list=Get_series_list(mid)
     #去除重复录播
-    if 'old_series_list' in locals():
-        series_list=[i for i in series_list if i not in old_series_list]
-        print('开始下载弹幕')
+    for i in old_series_list:
+        for j in series_list:
+            if i[1]==j[1]:
+                series_list.remove(j)
+    print('开始下载弹幕')
     #获取弹幕
     for i in series_list:
         Get_danmu(i[0],i[1],i[2])
@@ -106,9 +109,9 @@ def Get_wordcloud(mid):
     #读取缓存
     try:
         old_series_list=Read_series_list(mid)
-        print('\n已读取缓存')
+        print('已读取缓存')
     except:
-        print('\n未找到缓存，是否获取弹幕？')
+        print('未找到缓存，是否获取弹幕？')
         if input('y/n:').lower()=='y':
             Get_All_danmu(mid)
             old_series_list=Read_series_list(mid)
@@ -120,7 +123,7 @@ def Get_wordcloud(mid):
         try:
             pubdata=i[0]
             title=i[2]
-            with open(f'{Path}\\[{pubdata}]{title}.txt','r',encoding='utf-8') as f:
+            with open(f'./{mid}弹幕/{pubdata}{title}.txt','r',encoding='utf-8') as f:
                 #逐行读取
                 for line in f.readlines():
                     #去除'\n'
@@ -128,7 +131,7 @@ def Get_wordcloud(mid):
                     danmu+=line+' '
         except:
             pass
-    stopwords = open(f'{os.getcwd()}\\stopwords.txt', "r", encoding=('utf8')).read()
+    stopwords = open(f'./stopwords.txt', "r", encoding=('utf8')).read()
     #切词
     wordcount = {}
     danmu = jieba.cut(danmu)
@@ -138,7 +141,7 @@ def Get_wordcloud(mid):
                 wordcount[i] = wordcount.get(i, 0) + 1
     #生成词云
     print('开始生成词云')
-    fimg = os.getcwd()+'\\参考图.jpg'
+    fimg = './参考图.jpg'
     c_mask = imread(fimg)
     image_colors = ImageColorGenerator(c_mask)
     wc = WordCloud(
@@ -157,6 +160,7 @@ def Get_wordcloud(mid):
         scale=10,  # 按照比例进行放大画布
             ).fit_words(wordcount)
     wc.to_file('词云.png')
+    print('词云已保存到 词云.png 文件里')
 
 #————————————————————————————————————————————————————————
 
@@ -165,9 +169,9 @@ def Search_danmu(mid):
     #读取缓存
     try:
         old_series_list=Read_series_list(mid)
-        print('\n已读取缓存')
+        print('已读取缓存')
     except:
-        print('\n未找到缓存，是否获取弹幕？')
+        print('未找到缓存，是否获取弹幕？')
         if input('y/n:').lower()=='y':
             Get_All_danmu(mid)
             old_series_list=Read_series_list(mid)
@@ -179,7 +183,7 @@ def Search_danmu(mid):
         try:
             pubdata=i[0]
             title=i[2]
-            with open(f'{Path}\\[{pubdata}]{title}.txt','r',encoding='utf-8') as f:
+            with open(f'./{mid}弹幕/{pubdata}{title}.txt','r',encoding='utf-8') as f:
                 danmu_list[f'[{pubdata}]{title}']=[]
                 #逐行读取
                 for line in f.readlines():
@@ -190,8 +194,9 @@ def Search_danmu(mid):
             pass
     #查询弹幕
     while True:
-        danmu=input('\n请输入要查询的弹幕(直接回车则返回上一级):')
+        danmu=input('请输入要查询的弹幕(直接回车则返回上一级):')
         if danmu=='':
+            os.system('cls')
             break
         Back_list={}
         for i in danmu_list:
@@ -208,26 +213,37 @@ def Search_danmu(mid):
         for i in Back_list:
             print(f'{i}:')
             print(' '*2,Back_list[i],'\n')
+        input('按回车键继续')
+        os.system('cls')
 
 
 
-
-mid=input('请输入up主的uid:')
-#去除非数字
-mid = re.sub(r'\D', '', mid)
+while True:
+    mid=input('请输入up主的uid:')
+    #去除mid里的非数字
+    mid=''.join(re.findall(r'\d',mid))
+    if mid!='':
+        break
+    print('未输入uid\n')
+# mid=1792034157
 #创建文件夹
 if not os.path.exists(f'{mid}弹幕'):
     os.mkdir(f'{mid}弹幕')
-Path=os.getcwd()+f'\\{mid}弹幕'
 while True:
     #请选择功能
-    print('\n请选择功能:')
+    print('请选择功能:')
     print('1.获取弹幕'+'\n'+'2.生成词云'+'\n'+'3.弹幕查询')
-    choice=input('请输入数字:')
+    choice=input('请输入数字(直接回车则退出):')
+    os.system('cls')
     if choice=='1':
         Get_All_danmu(mid)
+        input('按回车键返回上一级')
+        os.system('cls')
     elif choice=='2':
         Get_wordcloud(mid)
+        input('按回车键返回上一级')
+        os.system('cls')
     elif choice=='3':
         Search_danmu(mid)
-    print('完成\n')
+    else:
+        break
