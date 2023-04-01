@@ -25,7 +25,7 @@ def online(url):
 
 
 #获取录播列表
-def Get_series_list(mid):
+def Get_series_list(mid:int):
     url = f'https://api.bilibili.com/x/polymer/space/seasons_series_list?mid={mid}&page_num=1&page_size=20'
     data = online(url)
     series_id=data['data']['items_lists']['series_list'][0]['meta']['series_id']
@@ -39,11 +39,11 @@ def Get_series_list(mid):
         data = online(url)
         for i in data['data']['archives']:
             try:
-                #将时间戳pubdate转化为时间
-                pubdate = time.strftime("%Y-%m-%d %H-%M", time.localtime(i['pubdate']))
+                # #将时间戳pubdate转化为时间
+                # pubdate = time.strftime("%Y-%m-%d %H-%M", time.localtime(i['pubdate']))
                 #去除title里不能作为文件名字的部分
                 title = re.sub(r'[\/\\\:\*\?\"\<\>\|]', '', i['title'])
-                series_list.append([pubdate,i['bvid'],title])
+                series_list.append([i['pubdate'],i['bvid'],title])
             except:
                 break
     print(f'录播列表已获取,共{len(series_list)}个录播')
@@ -55,7 +55,7 @@ def Get_series_list(mid):
 
 
 #读取录播弹幕
-def Get_danmu(pubdata,bvid,title):
+def Get_danmu(pubdata:int,bvid:str,title:str):
     #获取cid
     url=f'https://api.bilibili.com/x/web-interface/view?bvid={bvid}'
     data = online(url)
@@ -74,22 +74,22 @@ def Get_danmu(pubdata,bvid,title):
         print(f'[{pubdata}]{title}弹幕已保存')
 
 
-#读取缓存
-def Read_series_list(mid):
+#读取缓存列表
+def Read_series_list(mid:int):
     with open(f'./{mid}弹幕/录播列表{mid}.json','r',encoding='utf-8') as f:
         old_series_list=json.load(f)
     return old_series_list
 
 
 #获取视频弹幕
-def Get_All_danmu(mid):
+def Get_All_danmu(mid:int):
     #读取缓存
     try:
         old_series_list=Read_series_list(mid)
-        print('已读取缓存')
+        print('已读取缓存列表')
     except:
         old_series_list=[]
-        print('未找到缓存')
+        print('未找到缓存列表')
     #获取录播列表
     series_list=Get_series_list(mid)
     #去除重复录播
@@ -97,29 +97,38 @@ def Get_All_danmu(mid):
         for j in series_list:
             if i[1]==j[1]:
                 series_list.remove(j)
-    print('开始下载弹幕')
-    #获取弹幕
-    for i in series_list:
-        Get_danmu(i[0],i[1],i[2])
+    print(f'排除已有录播,共{len(series_list)}个录播需要下载')
+    if len(series_list)>0:
+        print('开始下载')
+        #获取弹幕
+        for i in series_list:
+            Get_danmu(i[0],i[1],i[2])
 
 #————————————————————————————————————————————————————————
 
 #生成词云
-def Get_wordcloud(mid):
-    #读取缓存
+def Get_wordcloud(mid:int,starttime:int,endtime:int):
+    #读取缓存列表
     try:
         old_series_list=Read_series_list(mid)
-        print('已读取缓存')
+        print('已读取缓存列表')
     except:
-        print('未找到缓存，是否获取弹幕？')
+        print('未找到缓存列表，是否获取弹幕？')
         if input('y/n:').lower()=='y':
             Get_All_danmu(mid)
             old_series_list=Read_series_list(mid)
         else:
             return
+    #去除列表中在时间范围外的部分
+    series_list=[]
+    for i in old_series_list:
+        time=i[0]
+        if time>=starttime and time<=endtime:
+            series_list.append(i)
     #读取弹幕
     danmu=''
-    for i in old_series_list:
+    Num=0
+    for i in series_list:
         try:
             pubdata=i[0]
             title=i[2]
@@ -129,6 +138,7 @@ def Get_wordcloud(mid):
                     #去除'\n'
                     line=line.strip('\n')
                     danmu+=line+' '
+                    Num+=1
         except:
             pass
     stopwords = open(f'./stopwords.txt', "r", encoding=('utf8')).read()
@@ -139,8 +149,20 @@ def Get_wordcloud(mid):
         if len(i) > 1:
             if i not in stopwords:
                 wordcount[i] = wordcount.get(i, 0) + 1
+    #整数转化为日期
+    starttime=timestamp_to_date(starttime)
+    endtime=timestamp_to_date(endtime)
+    print('你选择时间范围为:',starttime,'至',endtime)
+    print('时间范围内共有',len(series_list),'个文件')
+    print(f'共{Num}条弹幕')
+    #对wordcount排序
+    wordcount_ = sorted(wordcount.items(), key=lambda x: x[1], reverse=True)
+    #一行多个地输出前100个词及词频
+    print('\n排名前20的词及词频:')
+    for i in range(20):
+        print(''*4,wordcount_[i][0],wordcount_[i][1])
     #生成词云
-    print('开始生成词云')
+    print('\n开始生成词云')
     fimg = './参考图.jpg'
     c_mask = imread(fimg)
     image_colors = ImageColorGenerator(c_mask)
@@ -165,21 +187,27 @@ def Get_wordcloud(mid):
 #————————————————————————————————————————————————————————
 
 #弹幕查询
-def Search_danmu(mid):
-    #读取缓存
+def Search_danmu(mid:int,starttime:int,endtime:int):
+    #读取缓存列表
     try:
         old_series_list=Read_series_list(mid)
-        print('已读取缓存')
+        print('已读取缓存列表')
     except:
-        print('未找到缓存，是否获取弹幕？')
+        print('未找到缓存列表，是否获取弹幕？')
         if input('y/n:').lower()=='y':
             Get_All_danmu(mid)
             old_series_list=Read_series_list(mid)
         else:
             return
+    #去除列表中在时间范围外的部分
+    series_list=[]
+    for i in old_series_list:
+        time=i[0]
+        if time>=starttime and time<=endtime:
+            series_list.append(i)
     #读取弹幕
     danmu_list={}
-    for i in old_series_list:
+    for i in series_list:
         try:
             pubdata=i[0]
             title=i[2]
@@ -192,6 +220,11 @@ def Search_danmu(mid):
                     danmu_list[f'[{pubdata}]{title}'].append(line)
         except:
             pass
+    #时间戳转化为日期
+    starttime=timestamp_to_date(starttime)
+    endtime=timestamp_to_date(endtime)
+    print('你选择时间范围为:',starttime,'至',endtime)
+    print('时间范围内共有',len(series_list),'个文件')
     #查询弹幕
     while True:
         danmu=input('请输入要查询的弹幕(直接回车则返回上一级):')
@@ -216,6 +249,43 @@ def Search_danmu(mid):
         input('按回车键继续')
         os.system('cls')
 
+#————————————————————————————————————————————————————————
+
+def choicetime():
+    #是否选择时间范围
+    whilechoice=input('是否选择时间范围(y/n):')
+    if whilechoice.lower()=='y':
+        #开始时间
+        starttime=input('请输入开始时间(格式:20200101):')
+        while True:
+            if re.match(r'\d{4}\d{2}\d{2}',starttime):
+                break
+            print('时间格式错误')
+            starttime=input('请输入开始时间(格式:20200101):')
+        #结束时间
+        endtime=input('请输入结束时间(格式:20200101):')
+        while True:
+            if re.match(r'\d{4}\d{2}\d{2}',endtime):
+                break
+            print('时间格式错误')
+            endtime=input('请输入结束时间(格式:20200101):')
+        #转换为时间戳
+        starttime=time.mktime(time.strptime(starttime,'%Y%m%d'))
+        endtime=time.mktime(time.strptime(endtime,'%Y%m%d'))
+        #判断时间大小
+        if starttime>endtime:
+            starttime,endtime=endtime,starttime
+    else:
+        starttime=0
+        endtime=int(time.time())
+    return starttime,endtime
+
+
+#时间戳转化为日期
+def timestamp_to_date(timestamp):
+    timeArray = time.localtime(timestamp)
+    otherStyleTime = time.strftime("%Y-%m-%d", timeArray)
+    return otherStyleTime
 
 
 while True:
@@ -230,20 +300,22 @@ while True:
 if not os.path.exists(f'{mid}弹幕'):
     os.mkdir(f'{mid}弹幕')
 while True:
+    os.system('cls')
     #请选择功能
     print('请选择功能:')
     print('1.获取弹幕'+'\n'+'2.生成词云'+'\n'+'3.弹幕查询')
     choice=input('请输入数字(直接回车则退出):')
     os.system('cls')
+    if choice=='2' or choice=='3':
+        starttime,endtime=choicetime()
+        os.system('cls')
     if choice=='1':
         Get_All_danmu(mid)
         input('按回车键返回上一级')
-        os.system('cls')
     elif choice=='2':
-        Get_wordcloud(mid)
+        Get_wordcloud(mid,starttime,endtime)
         input('按回车键返回上一级')
-        os.system('cls')
     elif choice=='3':
-        Search_danmu(mid)
+        Search_danmu(mid,starttime,endtime)
     else:
         break
