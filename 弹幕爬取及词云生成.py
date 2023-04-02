@@ -11,8 +11,9 @@ import os
 import re
 
 
+
 headers = {
-    'Host': 'api.bilibili.com',
+    # 'Host': 'api.bilibili.com',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36 Edg/111.0.1661.62',
 }
 
@@ -60,16 +61,26 @@ def Get_danmu(pubdata:int,bvid:str,title:str):
     #获取cid
     url=f'https://api.bilibili.com/x/web-interface/view?bvid={bvid}'
     data = online(url)
-    cid=data['data']['cid']
-    #获取弹幕
-    url=f'https://api.bilibili.com/x/v1/dm/list.so?oid={cid}'
-    res=requests.get(url,headers=headers)
-    res.encoding='utf-8'
+    oid=data['data']['cid']
+    pid=data['data']['aid']
+    segment_index=1
     pat=[]
-    #解析xml
-    for row in xmltodict.parse(res.text)['i']['d']:
-        text=row['#text']
-        pat.append(text)
+    while True:
+        url=f'https://api.bilibili.com/x/v2/dm/web/seg.so?type=1&oid={oid}&pid={pid}&segment_index={segment_index}'
+        res=requests.get(url,headers=headers)
+        res.encoding='utf-8'
+        text=res.text
+        if text=='':
+            break
+        #解析
+        pattern = re.compile(r'\w{8}:[^\u4e00-\u9fa5](.*?)@')
+        #匹配
+        match = pattern.findall(text)
+        for i in match:
+            if match:
+                pat.append(i)
+        segment_index+=1
+
     #写入文件
     with open(f'./{mid}弹幕/{pubdata}{title}.txt','w',encoding='utf-8') as f:
         for i in pat:
@@ -106,7 +117,7 @@ def Get_All_danmu(mid:int):
         #获取弹幕
         for i in series_list:
             Get_danmu(i[0],i[1],i[2])
-            time.sleep(1)
+            # time.sleep(1)
 
 #————————————————————————————————————————————————————————
 
