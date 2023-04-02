@@ -67,7 +67,7 @@ def Get_danmu(pubdata:int,bvid:str,title:str):
     #获取弹幕
     pat=[]
     if danmaku <=9400:
-        url=f'https://api.bilibili.com/x/v1/dm/list.so?oid={cid}'
+        url=f'https://api.bilibili.com/x/v1/dm/list.so?oid={oid}'
         res=requests.get(url,headers=headers)
         res.encoding='utf-8'
         pat=[]
