@@ -5,14 +5,14 @@ import json
 import jieba
 from imageio import imread
 from wordcloud import WordCloud, ImageColorGenerator
-# 文件
+import xmltodict
 import os
 import re
 
 
 headers = {
     'Host': 'api.bilibili.com',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36 Edg/111.0.1661.54',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36 Edg/111.0.1661.62',
 }
 
 
@@ -62,16 +62,18 @@ def Get_danmu(pubdata:int,bvid:str,title:str):
     cid=data['data']['cid']
     #获取弹幕
     url=f'https://api.bilibili.com/x/v1/dm/list.so?oid={cid}'
-    text=requests.get(url=url,headers=headers)
-    text.encoding = 'utf-8'
-    text=text.text
-    pat_ = re.compile(r'">(.*?)</d><d ')
-    pat = pat_.findall(text)
+    res=requests.get(url,headers=headers)
+    res.encoding='utf-8'
+    pat=[]
+    #解析xml
+    for row in xmltodict.parse(res.text)['i']['d']:
+        text=row['#text']
+        pat.append(text)
     #写入文件
     with open(f'./{mid}弹幕/{pubdata}{title}.txt','w',encoding='utf-8') as f:
         for i in pat:
             f.write(i+'\n')
-        print(f'[{pubdata}]{title}弹幕已保存')
+        print(f'[{pubdata}]{title},{len(pat)}条弹幕已保存')
 
 
 #读取缓存列表
@@ -103,6 +105,7 @@ def Get_All_danmu(mid:int):
         #获取弹幕
         for i in series_list:
             Get_danmu(i[0],i[1],i[2])
+            time.sleep(1)
 
 #————————————————————————————————————————————————————————
 
@@ -141,7 +144,13 @@ def Get_wordcloud(mid:int,starttime:int,endtime:int):
                     Num+=1
         except:
             pass
-    stopwords = open(f'./stopwords.txt', "r", encoding=('utf8')).read()
+    try:
+        stopwords = open(f'./stopwords.txt', "r", encoding=('utf8')).read()
+    except:
+        #创建文件
+        with open(f'./stopwords.txt', "w", encoding=('utf8')) as f:
+            f.write(' ')
+        stopwords = open(f'./stopwords.txt', "r", encoding=('utf8')).read()
     #切词
     wordcount = {}
     danmu = jieba.cut(danmu)
@@ -162,9 +171,20 @@ def Get_wordcloud(mid:int,starttime:int,endtime:int):
     for i in range(20):
         print(''*4,wordcount_[i][0],wordcount_[i][1])
     #生成词云
+    #判断是否存在文件叫'参考图.jpg'
+    try:
+        fimg = './参考图.jpg'
+        c_mask = imread(fimg)
+    except:
+        print('未找到"参考图.jpg",词云生成失败')
+        return
+    #判断是否安装字体'站酷快乐体2016修订版'
+    try:
+        font = ImageFont.truetype('站酷快乐体2016修订版.ttf', 20)
+    except:
+        print('未安装"站酷快乐体2016修订版",词云生成失败')
+        return
     print('\n开始生成词云')
-    fimg = './参考图.jpg'
-    c_mask = imread(fimg)
     image_colors = ImageColorGenerator(c_mask)
     wc = WordCloud(
         # 词的处理
