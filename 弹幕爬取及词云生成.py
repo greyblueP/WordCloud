@@ -5,6 +5,7 @@ import json
 import jieba
 from imageio import imread
 from wordcloud import WordCloud, ImageColorGenerator
+from PIL import ImageFont
 import xmltodict
 import os
 import re
@@ -178,17 +179,17 @@ def Get_wordcloud(mid:int,starttime:int,endtime:int):
     except:
         print('未找到"参考图.jpg",词云生成失败')
         return
-    #判断是否安装字体'站酷快乐体2016修订版'
+    #检查是否存在字体'站酷快乐体2016修订版.ttf'
     try:
-        font = ImageFont.truetype('站酷快乐体2016修订版.ttf', 20)
+        font_path='站酷快乐体2016修订版.ttf'
+        font = ImageFont.truetype(font_path, 20)
     except:
-        print('未安装"站酷快乐体2016修订版",词云生成失败')
-        return
+        font_path='simhei.ttf'
     print('\n开始生成词云')
     image_colors = ImageColorGenerator(c_mask)
     wc = WordCloud(
         # 词的处理
-        font_path="站酷快乐体2016修订版.ttf",
+        font_path=font_path,  # 字体路径
         max_words=1000,  # 要显示的词的最大个数
         min_font_size=1,  # 显示的最小的字体大小
         font_step=2,  # 字号增加的步长
