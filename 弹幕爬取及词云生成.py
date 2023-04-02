@@ -63,23 +63,35 @@ def Get_danmu(pubdata:int,bvid:str,title:str):
     data = online(url)
     oid=data['data']['cid']
     pid=data['data']['aid']
-    segment_index=1
+    danmaku=data['data']['stat']['danmaku']
+    #获取弹幕
     pat=[]
-    while True:
-        url=f'https://api.bilibili.com/x/v2/dm/web/seg.so?type=1&oid={oid}&pid={pid}&segment_index={segment_index}'
+    if danmaku <=9400:
+        url=f'https://api.bilibili.com/x/v1/dm/list.so?oid={cid}'
         res=requests.get(url,headers=headers)
         res.encoding='utf-8'
-        text=res.text
-        if text=='':
-            break
-        #解析
-        pattern = re.compile(r'\w{8}:[^\u4e00-\u9fa5](.*?)@')
-        #匹配
-        match = pattern.findall(text)
-        for i in match:
-            if match:
-                pat.append(i)
-        segment_index+=1
+        pat=[]
+        #解析xml
+        for row in xmltodict.parse(res.text)['i']['d']:
+            text=row['#text']
+            pat.append(text)
+    else:
+        segment_index=1
+        while True:
+            url=f'https://api.bilibili.com/x/v2/dm/web/seg.so?type=1&oid={oid}&pid={pid}&segment_index={segment_index}'
+            res=requests.get(url,headers=headers)
+            res.encoding='utf-8'
+            text=res.text
+            if text=='':
+                break
+            #解析
+            pattern = re.compile(r'\w{8}:[^\u4e00-\u9fa5](.*?)@')
+            #匹配
+            match = pattern.findall(text)
+            for i in match:
+                if match:
+                    pat.append(i)
+            segment_index+=1
 
     #写入文件
     with open(f'./{mid}弹幕/{pubdata}{title}.txt','w',encoding='utf-8') as f:
